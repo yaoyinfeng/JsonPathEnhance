@@ -1,3 +1,4 @@
+// 说明：此代码是在https://github.com/oliveagle/jsonpath上做的扩展，做了一些jsonpath能力增强
 package jsonpath
 
 import (
@@ -12,6 +13,13 @@ import (
 )
 
 var ErrGetFromNullObj = errors.New("get attribute from null object")
+
+var (
+	SplitToArray = "s_split("
+	ConvertToJson = "s_convert_to_json("
+)
+
+var customer_funcs = []string{SplitToArray,ConvertToJson}
 
 func JsonPathLookup(obj interface{}, jpath string) (interface{}, error) {
 	c, err := Compile(jpath)
@@ -132,6 +140,8 @@ func (c *Compiled) Lookup(obj interface{}) (interface{}, error) {
 			if err != nil {
 				return nil, err
 			}
+		case SplitToArray:
+			obj, err = splitToArray(obj,s.args.(string))
 		default:
 			return nil, fmt.Errorf("expression don't support in filter")
 		}
@@ -167,7 +177,6 @@ func tokenize(query string) ([]string, error) {
 			token = "."
 			continue
 		} else {
-			// fmt.Println("else: ", string(x), token)
 			if strings.Contains(token, "[") {
 				// fmt.Println(" contains [ ")
 				if x == ']' && !strings.HasSuffix(token, "\\]") {
@@ -226,9 +235,19 @@ func parse_token(token string) (op string, key string, args interface{}, err err
 	}
 
 	bracket_idx := strings.Index(token, "[")
-	if bracket_idx < 0 {
+	customerFuncIdx := -1
+
+	for _, customerFunc := range customer_funcs {
+		customerFuncIdx = strings.Index(token, customerFunc)
+		if customerFuncIdx >=0 {
+			break
+		}
+	}
+	if bracket_idx < 0 && customerFuncIdx < 0 {
 		return "key", token, nil, nil
-	} else {
+	}
+
+	if bracket_idx >= 0 {
 		key = token[:bracket_idx]
 		tail := token[bracket_idx:]
 		if len(tail) < 3 {
@@ -286,6 +305,16 @@ func parse_token(token string) (op string, key string, args interface{}, err err
 			}
 			args = res
 		}
+	}
+	if customerFuncIdx >= 0 { // 处理自定义函数
+		roundBracketIdx := strings.Index(token,"(")
+		// 字符串分割
+		if strings.Contains(token,SplitToArray) {
+			op = SplitToArray
+			key = "channel"
+			args = token[roundBracketIdx+1:len(token)-1]
+		}
+
 	}
 	return op, key, args, nil
 }
@@ -719,4 +748,31 @@ func cmp_any(obj1, obj2 interface{}, op string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func splitToArray(obj interface{}, splitMarker string) ([]interface{}, error) {
+
+	res := []interface{}{}
+
+	switch reflect.TypeOf(obj).Kind() {
+	case reflect.Slice:
+
+		for i := 0; i < reflect.ValueOf(obj).Len(); i++ {
+			tmp := reflect.ValueOf(obj).Index(i).Interface()
+			if reflect.TypeOf(tmp).Kind() != reflect.String {
+				return nil, fmt.Errorf("s_split don't support on this type: %v", reflect.TypeOf(tmp).Kind())
+			}
+			items := strings.Split(tmp.(string), splitMarker)
+			res = append(res, items)
+		}
+
+		return res, nil
+	case reflect.String:
+		items := strings.Split(obj.(string), splitMarker)
+		res = append(res, items)
+	default:
+		return nil, fmt.Errorf("s_split don't support on this type: %v", reflect.TypeOf(obj).Kind())
+	}
+
+	return res, nil
 }

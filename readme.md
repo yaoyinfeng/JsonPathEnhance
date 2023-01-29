@@ -1,4 +1,4 @@
-JsonPath
+JsonPath Enhance
 ----------------
 
 ![Build Status](https://travis-ci.org/oliveagle/jsonpath.svg?branch=master)
@@ -7,32 +7,35 @@ A golang implementation of JsonPath syntax.
 follow the majority rules in http://goessner.net/articles/JsonPath/
 but also with some minor differences.
 
-this library is till bleeding edge, so use it at your own risk. :D
-
 **Golang Version Required**: 1.5+
+
+说明：该项目fork了https://github.com/oliveagle/jsonpath，
+并在上面做了功能扩展，主要包括：
+1. 增加了字符串分割成数组的能力，s_split()
+2. 增加了二维数组的遍历的能力，2d_slice_range()
+3. 支持了将Json中的Json字符串转Json的能力，弥补JsonPath无法对嵌套的Json字符串下钻处理的问题，s_convert_to_json()
+
+
 
 Get Started
 ------------
 
 ```bash
-go get github.com/oliveagle/jsonpath
+go get github.com/yaoyinfeng/JsonPathEnhance
 ```
 
 example code:
 
 ```go
 import (
-    "github.com/oliveagle/jsonpath"
+    jsonpath "github.com/yaoyinfeng/JsonPathEnhance"
     "encoding/json"
 )
 
 var json_data interface{}
 json.Unmarshal([]byte(data), &json_data)
 
-res, err := jsonpath.JsonPathLookup(json_data, "$.expensive")
-
-//or reuse lookup pattern
-pat, _ := jsonpath.Compile(`$.store.book[?(@.price < $.expensive)].price`)
+pat, _ := jsonpath.Compile(`$.book[:].title.s_split(:)`)
 res, err := pat.Lookup(json_data)
 ```
 
@@ -64,27 +67,31 @@ given these example data.
                 "category": "reference",
                 "author": "Nigel Rees",
                 "title": "Sayings of the Century",
-                "price": 8.95
+                "price": 8.95,
+                "msg":"无代金券:请补充至少1张代金券"
             },
             {
                 "category": "fiction",
                 "author": "Evelyn Waugh",
                 "title": "Sword of Honour",
-                "price": 12.99
+                "price": 12.99,
+                "msg":"无代金券:请补充至少1张代金券"
             },
             {
                 "category": "fiction",
                 "author": "Herman Melville",
                 "title": "Moby Dick",
                 "isbn": "0-553-21311-3",
-                "price": 8.99
+                "price": 8.99,
+                "msg":"无代金券:请补充至少1张代金券"
             },
             {
                 "category": "fiction",
                 "author": "J. R. R. Tolkien",
                 "title": "The Lord of the Rings",
                 "isbn": "0-395-19395-8",
-                "price": 22.99
+                "price": 22.99,
+                "msg":"无代金券:请补充至少1张代金券"
             }
         ],
         "bicycle": {
@@ -92,7 +99,8 @@ given these example data.
             "price": 19.95
         }
     },
-    "expensive": 10
+    "expensive": 10,
+    "person":"{\"id\":\"123\",\"name\":\"yyf\"}"
 }
 ```
 example json path syntax.
@@ -110,5 +118,8 @@ example json path syntax.
 | $.store.book[?(@.price < $.expensive)].price     | [8.95, 8.99] |
 | $.store.book[:].price                            | [8.9.5, 12.99, 8.9.9, 22.99] |
 | $.store.book[?(@.author =~ /(?i).*REES/)].author | "Nigel Rees" |
+| $.store.book[:].msg.s_split(:) | [无代金券:请补充至少1张代金券 无代金券:请补充至少2张代金券 无代金券:请补充至少3张代金券] |
+| $.store.book[:].msg.s_split(:).2d_slice_range(1) | [请补充至少1张代金券 请补充至少2张代金券 请补充至少3张代金券] |
+| $.person.s_convert_to_json().name | yyf |
 
 > Note: golang support regular expression flags in form of `(?imsU)pattern`

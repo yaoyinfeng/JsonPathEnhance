@@ -21,27 +21,31 @@ func init() {
                 "category": "reference",
                 "author": "Nigel Rees",
                 "title": "Sayings of the Century",
-                "price": 8.95
+                "price": 8.95,
+				"msg":"无代金券:请补充至少1张代金券"
             },
             {
                 "category": "fiction",
                 "author": "Evelyn Waugh",
                 "title": "Sword of Honour",
-                "price": 12.99
+                "price": 12.99,
+				"msg":"无代金券:请补充至少2张代金券"
             },
             {
                 "category": "fiction",
                 "author": "Herman Melville",
                 "title": "Moby Dick",
                 "isbn": "0-553-21311-3",
-                "price": 8.99
+                "price": 8.99,
+				"msg":"无代金券:请补充至少3张代金券"
             },
             {
                 "category": "fiction",
                 "author": "J. R. R. Tolkien",
                 "title": "The Lord of the Rings",
                 "isbn": "0-395-19395-8",
-                "price": 22.99
+                "price": 22.99,
+				"msg":"无代金券:请补充至少4张代金券"
             }
         ],
         "bicycle": {
@@ -54,6 +58,32 @@ func init() {
 `
 	json.Unmarshal([]byte(data), &json_data)
 }
+
+func Test_jsonpath_s_split(t *testing.T) {
+	data := `
+{
+    "store": {
+        "book": [
+            {
+				"msg":"无代金券:请补充至少1张代金券"
+            },
+            {
+				"msg":"无代金券:请补充至少2张代金券"
+            },
+            {
+				"msg":"无代金券:请补充至少3张代金券"
+            },
+            
+        ],
+    },
+}
+`
+	var json_data_internal interface{}
+	json.Unmarshal([]byte(data), &json_data_internal)
+	res, _ := JsonPathLookup(json_data_internal, "$.store.book[:].s_split(:)")
+	fmt.Println(res)
+}
+
 
 func Test_jsonpath_JsonPathLookup_1(t *testing.T) {
 	// key from root

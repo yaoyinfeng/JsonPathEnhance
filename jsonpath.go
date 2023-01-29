@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"encoding/json"
 )
 
 var ErrGetFromNullObj = errors.New("get attribute from null object")
@@ -17,9 +18,10 @@ var ErrGetFromNullObj = errors.New("get attribute from null object")
 var (
 	SplitToArray = "s_split("
 	ConvertToJson = "s_convert_to_json("
+	TwoDimSliceRange = "2d_slice_range("
 )
 
-var customer_funcs = []string{SplitToArray,ConvertToJson}
+var customerFuncs = []string{SplitToArray,ConvertToJson,TwoDimSliceRange}
 
 func JsonPathLookup(obj interface{}, jpath string) (interface{}, error) {
 	c, err := Compile(jpath)
@@ -142,6 +144,10 @@ func (c *Compiled) Lookup(obj interface{}) (interface{}, error) {
 			}
 		case SplitToArray:
 			obj, err = splitToArray(obj,s.args.(string))
+		case TwoDimSliceRange:
+			obj, err = twoDimSliceRange(obj,s.args.(string))
+		case ConvertToJson:
+			obj, err = convertToJson(obj)
 		default:
 			return nil, fmt.Errorf("expression don't support in filter")
 		}
@@ -237,7 +243,7 @@ func parse_token(token string) (op string, key string, args interface{}, err err
 	bracket_idx := strings.Index(token, "[")
 	customerFuncIdx := -1
 
-	for _, customerFunc := range customer_funcs {
+	for _, customerFunc := range customerFuncs {
 		customerFuncIdx = strings.Index(token, customerFunc)
 		if customerFuncIdx >=0 {
 			break
@@ -311,9 +317,14 @@ func parse_token(token string) (op string, key string, args interface{}, err err
 		// 字符串分割
 		if strings.Contains(token,SplitToArray) {
 			op = SplitToArray
-			key = "channel"
-			args = token[roundBracketIdx+1:len(token)-1]
 		}
+		if strings.Contains(token,TwoDimSliceRange) {
+			op = TwoDimSliceRange
+		}
+		if strings.Contains(token,ConvertToJson) {
+			op = ConvertToJson
+		}
+		args = token[roundBracketIdx+1:len(token)-1]
 
 	}
 	return op, key, args, nil
@@ -721,6 +732,23 @@ func isNumber(o interface{}) bool {
 	return false
 }
 
+func isInt(o interface{}) bool {
+	switch v := o.(type) {
+	case int, int8, int16, int32, int64:
+		return true
+	case uint, uint8, uint16, uint32, uint64:
+		return true
+	case string:
+		_, err := strconv.Atoi(v)
+		if err == nil {
+			return true
+		} else {
+			return false
+		}
+	}
+	return false
+}
+
 func cmp_any(obj1, obj2 interface{}, op string) (bool, error) {
 	switch op {
 	case "<", "<=", "==", ">=", ">":
@@ -773,6 +801,74 @@ func splitToArray(obj interface{}, splitMarker string) ([]interface{}, error) {
 	default:
 		return nil, fmt.Errorf("s_split don't support on this type: %v", reflect.TypeOf(obj).Kind())
 	}
+
+	return res, nil
+}
+
+func twoDimSliceRange(obj interface{}, arg string) ([]interface{}, error) {
+
+	res := []interface{}{}
+
+	switch reflect.TypeOf(obj).Kind() {
+	case reflect.Slice:
+		args := strings.Split(arg,":")
+		argsInt := []int{}
+		if len(args) < 1 ||  len(args) > 2 {
+			return nil, fmt.Errorf("2d_slice_range one or two args needed, but given: %d", len(args))
+		}
+		for _, v := range args {
+			if !isInt(v){
+				return nil, fmt.Errorf("2d_slice_range only support int args, but given: %d", v)
+			}
+			idx, _ := strconv.Atoi(v)
+			argsInt = append(argsInt, idx)
+		}
+		for i := 0; i < reflect.ValueOf(obj).Len(); i++ {
+			tmp := reflect.ValueOf(obj).Index(i).Interface()
+			//if reflect.TypeOf(tmp).Kind() != reflect.Slice {
+			//	return nil, fmt.Errorf("2d_slice_range don't support on this type: %v", reflect.TypeOf(tmp).Kind())
+			//}
+
+			switch tmp.(type) {
+			case []string:
+				if len(args)  == 1 {
+					items := tmp.([]string)[argsInt[0]]
+					res = append(res, items)
+				} else {
+					items := tmp.([]string)[argsInt[0]:argsInt[1]]
+					res = append(res, items)
+				}
+			case []interface{}:
+				if len(args)  == 1 {
+					items := tmp.([]interface{})[argsInt[0]]
+					res = append(res, items)
+				} else {
+					items := tmp.([]interface{})[argsInt[0]:argsInt[1]]
+					res = append(res, items)
+				}
+			default:
+				return nil, fmt.Errorf("2d_slice_range don't support on this type: %v", reflect.TypeOf(tmp).Kind())
+
+			}
+		}
+
+		return res, nil
+
+	default:
+		return nil, fmt.Errorf("s_split don't support on this type: %v", reflect.TypeOf(obj).Kind())
+	}
+
+	return res, nil
+}
+
+
+func convertToJson(obj interface{}) (interface{}, error) {
+
+	if reflect.TypeOf(obj).Kind() != reflect.String {
+		return nil, fmt.Errorf("convertToJson only support string type, don't support on this type: %v", reflect.TypeOf(obj).Kind())
+	}
+	var res interface{}
+	json.Unmarshal([]byte(obj.(string)),&res)
 
 	return res, nil
 }

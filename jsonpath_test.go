@@ -73,15 +73,136 @@ func Test_jsonpath_s_split(t *testing.T) {
             {
 				"msg":"无代金券:请补充至少3张代金券"
             },
-            
-        ],
-    },
+			{
+				"msg_key_not_exist":"无代金券:请补充至少3张代金券:没有其他"
+            },
+			{
+				"msg":"没有可以分割的标志"
+            },
+			{
+				"test_not_string":100
+            },
+			{
+				"test_not_string":"测试"
+            }
+        ]
+    }
 }
 `
-	var json_data_internal interface{}
-	json.Unmarshal([]byte(data), &json_data_internal)
-	res, _ := JsonPathLookup(json_data_internal, "$.store.book[:].s_split(:)")
-	fmt.Println(res)
+	var jsonDataInternal interface{}
+	json.Unmarshal([]byte(data), &jsonDataInternal)
+	res, _ := JsonPathLookup(jsonDataInternal, "$.store.book[:].msg.s_split(:)")
+	resVal,ok := res.([]interface{})
+	if !ok || len(resVal) != 4 {
+		t.Fatalf("$.store.book[:].msg.s_split(:) len should be 4，exactly is %v", len(resVal))
+	}
+
+	if resZeroVal,ok := resVal[0].([]string); !ok || len(resZeroVal) != 2 || resZeroVal[0] != "无代金券"{
+		t.Fatalf("$.store.book[:].msg.s_split(:) vals[0] len should be 2")
+	}
+	if resZeroVal,ok := resVal[3].([]string); !ok || len(resZeroVal) != 1 || resZeroVal[0] != "没有可以分割的标志"{
+		t.Fatalf("$.store.book[:].msg.s_split(:) vals[3] len should be 1")
+	}
+
+	res, _ = JsonPathLookup(jsonDataInternal, "$.store.book[:].msg.s_split(,)")
+	resVal,ok = res.([]interface{})
+	if !ok || len(resVal) != 4 {
+		t.Fatalf("$.store.book[:].msg.s_split(:) len should be 4，exactly is %v", len(resVal))
+	}
+
+	_, err := JsonPathLookup(jsonDataInternal, "$.store.book[:].test_not_string.s_split(:)")
+	if err == nil {
+		t.Fatalf("$.store.book[:].test_not_string.s_split(:) should return err，exactly err is nil")
+	}
+
+}
+
+func Test_jsonpath_2d_dim_range(t *testing.T) {
+	data := `
+{
+    "store": {
+        "book": [
+            {
+				"msg":"无代金券:请补充至少1张代金券:没有其他"
+            },
+            {
+				"msg":"无代金券:请补充至少2张代金券:没有其他"
+            },
+            {
+				"msg":"无代金券:请补充至少3张代金券:没有其他"
+            }
+        ]
+    }
+}
+`
+	var jsonDataInternal interface{}
+	json.Unmarshal([]byte(data), &jsonDataInternal)
+	res, _ := JsonPathLookup(jsonDataInternal, "$.store.book[:].msg.s_split(:).2d_slice_range(1:3)")
+	resVal,ok := res.([]interface{})
+	if !ok || len(resVal) != 3{
+		t.Fatalf("$.store.book[:].msg.s_split(:) len should be 3")
+	}
+
+	if resZeroVal,ok := resVal[0].([]string); !ok || len(resZeroVal) != 2 || resZeroVal[1] != "没有其他"{
+		t.Fatalf("$.store.book[:].msg.s_split(:).2d_slice_range(1:3) val`s len should be 2")
+	}
+
+	res, _ = JsonPathLookup(jsonDataInternal, "$.store.book[:].msg.s_split(:).2d_slice_range(2)")
+	resVal,ok = res.([]interface{})
+	if !ok || len(resVal) != 3{
+		t.Fatalf("$.store.book[:].msg.s_split(:) len should be 3")
+	}
+
+	if resZeroVal,ok := resVal[0].(string); !ok || resZeroVal != "没有其他"{
+		t.Fatalf("$.store.book[:].msg.s_split(:).2d_slice_range(2) val should be 没有其他")
+	}
+
+}
+
+func Test_jsonpath_s_convert_to_json(t *testing.T) {
+	data := `
+		{
+			"person":"{\"id\":\"123\",\"name\":\"yyf\"}",
+			"not_json_string_be_string":"hello",
+			"not_json_string_be_int":100,
+			"not_json_string_be_map":{
+				"key":1
+			},
+			"not_json_string_be_slice":[1,2,3]
+		}	
+	`
+	var jsonDataInternal interface{}
+	json.Unmarshal([]byte(data), &jsonDataInternal)
+	res, err := JsonPathLookup(jsonDataInternal, "$.person.s_convert_to_json().name")
+	if err != nil {
+		t.Fatalf("$.person.s_convert_to_json().name should be yyf, but err not nil. err: %v", err)
+	}
+	resVal,ok := res.(string)
+	if !ok || resVal != "yyf" {
+		t.Fatalf("$.person.s_convert_to_json().name should be yyf, exactly be %v", resVal)
+	}
+
+	res, _ = JsonPathLookup(jsonDataInternal, "$.person.s_convert_to_json().not_exist_key")
+	if res != nil {
+		t.Fatalf("$.person.s_convert_to_json().not_exist_key should be nil, exactly be %v", res)
+	}
+
+	res, err = JsonPathLookup(jsonDataInternal, "$.not_json_string_be_string.s_convert_to_json()")
+	if err == nil {
+		t.Fatalf("$.not_json_string_be_string.s_convert_to_json() should return err, exactly err is nil")
+	}
+	res, err = JsonPathLookup(jsonDataInternal, "$.not_json_string_be_int.s_convert_to_json()")
+	if err == nil {
+		t.Fatalf("$.not_json_string_be_int.s_convert_to_json() should return err, exactly err is nil")
+	}
+	res, err = JsonPathLookup(jsonDataInternal, "$.not_json_string_be_map.s_convert_to_json()")
+	if err == nil {
+		t.Fatalf("$.not_json_string_be_map.s_convert_to_json() should return err, exactly err is nil")
+	}
+	res, err = JsonPathLookup(jsonDataInternal, "$.not_json_string_be_slice.s_convert_to_json()")
+	if err == nil {
+		t.Fatalf("$.not_json_string_be_slice.s_convert_to_json() should return err, exactly err is nil")
+	}
 }
 
 
@@ -1209,13 +1330,13 @@ func Test_jsonpath_rootnode_is_array_range(t *testing.T) {
 		t.Logf("idx: %v, v: %v", idx, v)
 	}
 	if len(ares) != 2 {
-		t.Fatal("len is not 2. got: %v", len(ares))
+		t.Fatalf("len is not 2. got: %v", len(ares))
 	}
 	if ares[0].(float64) != 12.34 {
-		t.Fatal("idx: 0, should be 12.34. got: %v", ares[0])
+		t.Fatalf("idx: 0, should be 12.34. got: %v", ares[0])
 	}
 	if ares[1].(float64) != 13.34 {
-		t.Fatal("idx: 0, should be 12.34. got: %v", ares[1])
+		t.Fatalf("idx: 0, should be 12.34. got: %v", ares[1])
 	}
 }
 
@@ -1262,7 +1383,7 @@ func Test_jsonpath_rootnode_is_nested_array_range(t *testing.T) {
 		t.Logf("idx: %v, v: %v", idx, v)
 	}
 	if len(ares) != 2 {
-		t.Fatal("len is not 2. got: %v", len(ares))
+		t.Fatalf("len is not 2. got: %v", len(ares))
 	}
 
 	//FIXME: `$[:1].[0].test` got wrong result

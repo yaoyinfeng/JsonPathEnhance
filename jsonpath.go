@@ -144,10 +144,19 @@ func (c *Compiled) Lookup(obj interface{}) (interface{}, error) {
 			}
 		case SplitToArray:
 			obj, err = splitToArray(obj,s.args.(string))
+			if err != nil {
+				return nil, err
+			}
 		case TwoDimSliceRange:
 			obj, err = twoDimSliceRange(obj,s.args.(string))
+			if err != nil {
+				return nil, err
+			}
 		case ConvertToJson:
 			obj, err = convertToJson(obj)
+			if err != nil {
+				return nil, err
+			}
 		default:
 			return nil, fmt.Errorf("expression don't support in filter")
 		}
@@ -812,13 +821,13 @@ func twoDimSliceRange(obj interface{}, arg string) ([]interface{}, error) {
 	switch reflect.TypeOf(obj).Kind() {
 	case reflect.Slice:
 		args := strings.Split(arg,":")
-		argsInt := []int{}
+		var argsInt []int
 		if len(args) < 1 ||  len(args) > 2 {
 			return nil, fmt.Errorf("2d_slice_range one or two args needed, but given: %d", len(args))
 		}
 		for _, v := range args {
 			if !isInt(v){
-				return nil, fmt.Errorf("2d_slice_range only support int args, but given: %d", v)
+				return nil, fmt.Errorf("2d_slice_range only support int args, but given: %v", v)
 			}
 			idx, _ := strconv.Atoi(v)
 			argsInt = append(argsInt, idx)
@@ -865,10 +874,13 @@ func twoDimSliceRange(obj interface{}, arg string) ([]interface{}, error) {
 func convertToJson(obj interface{}) (interface{}, error) {
 
 	if reflect.TypeOf(obj).Kind() != reflect.String {
-		return nil, fmt.Errorf("convertToJson only support string type, don't support on this type: %v", reflect.TypeOf(obj).Kind())
+		return nil, fmt.Errorf("convertToJson only support JsonString type, don't support on this type: %v", reflect.TypeOf(obj).Kind())
 	}
 	var res interface{}
 	json.Unmarshal([]byte(obj.(string)),&res)
 
+	if res == nil || reflect.TypeOf(res).Kind() != reflect.Map {
+		return nil, fmt.Errorf("convertToJson only support JsonString type, don't support string")
+	}
 	return res, nil
 }

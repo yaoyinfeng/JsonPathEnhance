@@ -21,14 +21,14 @@ Get Started
 ------------
 
 ```bash
-go get github.com/yaoyinfeng/JsonPathEnhance
+go get github.com/yaoyinfeng/json_path_enhance
 ```
 
 example code:
 
 ```go
 import (
-    jsonpath "github.com/yaoyinfeng/JsonPathEnhance"
+    jsonpath "github.com/yaoyinfeng/json_path_enhance"
     "encoding/json"
 )
 

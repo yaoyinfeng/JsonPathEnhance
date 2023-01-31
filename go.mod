@@ -1,3 +1,3 @@
-module json_path_enhance
+module github.com/yaoyinfeng/json_path_enhance
 
 go 1.17

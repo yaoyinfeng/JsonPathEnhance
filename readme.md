@@ -120,8 +120,7 @@ example json path syntax.
 | $.store.book[?(@.author =~ /(?i).*REES/)].author | "Nigel Rees" |
 | $.store.book[:].msg.s_split(:) | [[无代金券,请补充至少1张代金券,没有其他],[无代金券,请补充至少2张代金券,没有其他],[无代金券,请补充至少3张代金券,没有其他]] |
 | $.store.book[:].msg.s_split(:).2d_slice_range(1) | [请补充至少1张代金券,请补充至少2张代金券,请补充至少3张代金券] |
-| $.store.book[:].msg.s_split(:).2d_slice_range(1:3) | [[请补充至少1张代金券,没有其他],[请补充至少2张代金券,没有其他],[请补充至少3张代金券,没有其他]]
-|
+| $.store.book[:].msg.s_split(:).2d_slice_range(1:3) | [[请补充至少1张代金券,没有其他],[请补充至少2张代金券,没有其他],[请补充至少3张代金券,没有其他]] |
 | $.person.s_convert_to_json().name | yyf |
 
 > Note: golang support regular expression flags in form of `(?imsU)pattern`

@@ -1,4 +1,4 @@
-package jsonpath
+package json_path_enhance
 
 import (
 	"encoding/json"

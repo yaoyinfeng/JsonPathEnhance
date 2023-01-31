@@ -1,5 +1,5 @@
 // 说明：此代码是在https://github.com/oliveagle/jsonpath上做的扩展，做了一些jsonpath能力增强
-package jsonpath
+package json_path_enhance
 
 import (
 	"errors"
